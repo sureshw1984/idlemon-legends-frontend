@@ -1,4 +1,3 @@
-
 import AuthApi from "../api/AuthApi.js";
 import ApiClient from "../api/ApiClient.js";
 import PlayerApi from "../api/PlayerApi.js";
@@ -36,36 +35,38 @@ export default class LoginScene extends Phaser.Scene {
   }
 
   createHtmlInputs() {
-    this.usernameInput = this.add.dom(40, 115, "input", {
+    this.usernameInput = this.add.dom(40, 110, "input", {
       width: "260px",
-      height: "32px",
+      height: "40px",
       fontSize: "18px",
-      padding: "4px",
-    });
+      padding: "4px 8px",
+      boxSizing: "border-box",
+    }).setOrigin(0, 0);
 
-    this.passwordInput = this.add.dom(40, 185, "input", {
+    this.passwordInput = this.add.dom(40, 180, "input", {
       width: "260px",
-      height: "32px",
+      height: "40px",
       fontSize: "18px",
-      padding: "4px",
-    });
+      padding: "4px 8px",
+      boxSizing: "border-box",
+    }).setOrigin(0, 0);
 
+    this.usernameInput.node.type = "text";
     this.passwordInput.node.type = "password";
 
-    // Optional dev defaults
     this.usernameInput.node.value = "player1";
     this.passwordInput.node.value = "123456";
   }
 
   createButtons() {
-    this.loginButton = this.add.text(40, 240, "[ Login ]", {
+    this.loginButton = this.add.text(40, 250, "[ Login ]", {
       fontSize: "26px",
       backgroundColor: "#1e88e5",
       color: "#ffffff",
       padding: { x: 12, y: 8 },
     }).setInteractive({ useHandCursor: true });
 
-    this.registerButton = this.add.text(180, 240, "[ Register ]", {
+    this.registerButton = this.add.text(200, 250, "[ Register ]", {
       fontSize: "26px",
       backgroundColor: "#43a047",
       color: "#ffffff",

@@ -5,6 +5,11 @@ import GameState from "../managers/GameState.js";
 export default class MonstersScene extends Phaser.Scene {
   constructor() {
     super("MonstersScene");
+
+    this.craftScrollY = 0;
+    this.craftViewportHeight = 380;
+    this.craftContentHeight = 0;
+    this.craftBaseY = 110;
   }
 
   create() {
@@ -30,7 +35,60 @@ export default class MonstersScene extends Phaser.Scene {
     });
 
     this.ownedContainer = this.add.container(30, 110);
-    this.craftContainer = this.add.container(460, 110);
+
+    // Craft panel background
+    this.craftPanelBg = this.add.rectangle(
+      450,
+      this.craftBaseY - 10,
+      410,
+      this.craftViewportHeight + 20,
+      0x1e1e1e,
+      0.35
+    ).setOrigin(0, 0);
+
+    this.craftContainer = this.add.container(460, this.craftBaseY);
+
+    // Mask graphics for craft panel
+    this.craftMaskShape = this.make.graphics({ x: 0, y: 0, add: false });
+    this.craftMaskShape.fillStyle(0xffffff);
+    this.craftMaskShape.fillRect(460, this.craftBaseY, 360, this.craftViewportHeight);
+
+    this.craftMask = this.craftMaskShape.createGeometryMask();
+    this.craftContainer.setMask(this.craftMask);
+
+    // Scrollbar track
+    this.scrollTrack = this.add.rectangle(
+      835,
+      this.craftBaseY,
+      12,
+      this.craftViewportHeight,
+      0x444444,
+      0.8
+    ).setOrigin(0, 0);
+
+    // Scrollbar thumb
+    this.scrollThumb = this.add.rectangle(
+      835,
+      this.craftBaseY,
+      12,
+      60,
+      0x888888,
+      1
+    )
+      .setOrigin(0, 0)
+      .setInteractive({ draggable: true, useHandCursor: true });
+
+    this.input.setDraggable(this.scrollThumb);
+
+    this.input.on("drag", (pointer, gameObject, dragX, dragY) => {
+      if (gameObject === this.scrollThumb) {
+        this.handleThumbDrag(dragY);
+      }
+    });
+
+    this.input.on("wheel", (pointer, gameObjects, deltaX, deltaY) => {
+      this.handleCraftScroll(deltaY);
+    });
 
     this.makeButton(30, 490, "Refresh", async () => {
       await this.handleRefresh();
@@ -62,6 +120,7 @@ export default class MonstersScene extends Phaser.Scene {
   renderAll() {
     this.renderOwnedMonsters();
     this.renderCraftableMonsters();
+    this.updateCraftScrollVisuals();
   }
 
   renderOwnedMonsters() {
@@ -113,6 +172,8 @@ export default class MonstersScene extends Phaser.Scene {
         color: "#ffffff",
       });
       this.craftContainer.add(text);
+      this.craftContentHeight = 40;
+      this.craftScrollY = 0;
       return;
     }
 
@@ -159,6 +220,81 @@ export default class MonstersScene extends Phaser.Scene {
 
       y += 95;
     });
+
+    this.craftContentHeight = y;
+    this.clampCraftScroll();
+  }
+
+  handleCraftScroll(deltaY) {
+    if (this.craftContentHeight <= this.craftViewportHeight) {
+      return;
+    }
+
+    this.craftScrollY -= deltaY * 0.5;
+    this.clampCraftScroll();
+    this.updateCraftScrollVisuals();
+  }
+
+  clampCraftScroll() {
+    const maxScroll = Math.max(0, this.craftContentHeight - this.craftViewportHeight);
+
+    if (this.craftScrollY > 0) {
+      this.craftScrollY = 0;
+    }
+
+    if (this.craftScrollY < -maxScroll) {
+      this.craftScrollY = -maxScroll;
+    }
+  }
+
+  updateCraftScrollVisuals() {
+    this.craftContainer.y = this.craftBaseY + this.craftScrollY;
+
+    const maxScroll = Math.max(0, this.craftContentHeight - this.craftViewportHeight);
+
+    if (maxScroll <= 0) {
+      this.scrollThumb.setVisible(false);
+      this.scrollTrack.setVisible(false);
+      return;
+    }
+
+    this.scrollThumb.setVisible(true);
+    this.scrollTrack.setVisible(true);
+
+    const thumbMinHeight = 40;
+    const thumbHeight = Math.max(
+      thumbMinHeight,
+      (this.craftViewportHeight / this.craftContentHeight) * this.craftViewportHeight
+    );
+
+    this.scrollThumb.height = thumbHeight;
+
+    const availableTrack = this.craftViewportHeight - thumbHeight;
+    const progress = Math.abs(this.craftScrollY) / maxScroll;
+    const thumbY = this.craftBaseY + availableTrack * progress;
+
+    this.scrollThumb.y = thumbY;
+  }
+
+  handleThumbDrag(dragY) {
+    const thumbHeight = this.scrollThumb.height;
+    const minY = this.craftBaseY;
+    const maxY = this.craftBaseY + this.craftViewportHeight - thumbHeight;
+
+    const clampedY = Phaser.Math.Clamp(dragY, minY, maxY);
+    this.scrollThumb.y = clampedY;
+
+    const maxScroll = Math.max(0, this.craftContentHeight - this.craftViewportHeight);
+    const availableTrack = this.craftViewportHeight - thumbHeight;
+
+    if (availableTrack <= 0 || maxScroll <= 0) {
+      this.craftScrollY = 0;
+    } else {
+      const progress = (clampedY - minY) / availableTrack;
+      this.craftScrollY = -maxScroll * progress;
+    }
+
+    this.craftContainer.y = this.craftBaseY + this.craftScrollY;
   }
 
   async handleCraft(monsterId, monsterName) {
